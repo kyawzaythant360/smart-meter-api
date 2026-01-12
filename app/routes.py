@@ -60,6 +60,14 @@ class SimUsageResponse(BaseModel):
     boughtEnergyWh: float
 
 
+
+def to_utc_naive(dt: datetime) -> datetime:
+    """
+    Convert timezone-aware datetime to UTC naive (MongoDB compatible)
+    """
+    if dt.tzinfo is not None:
+        return dt.astimezone(timezone.utc).replace(tzinfo=None)
+    return dt
 # -------------------------------
 # Auth Helpers
 # -------------------------------
@@ -229,22 +237,30 @@ async def get_product_sim_usage(
     page: int = Query(1, ge=1),
     per_page: int = Query(10, ge=1, le=100),
 ):
-    query = {"product_id": ObjectId(product_id), "facilitator_name": "demo_facilitator"}
+    query = {
+        "product_id": ObjectId(product_id),
+        "facilitator_name": "demo_facilitator"
+    }
 
     if start or end:
         query["dateCreated"] = {}
-        from datetime import timezone
 
         if start:
-            query["dateCreated"]["$gte"] = start.astimezone(timezone.utc).replace(tzinfo=None)
+            query["dateCreated"]["$gte"] = to_utc_naive(start)
         if end:
-            query["dateCreated"]["$lte"] = end.astimezone(timezone.utc).replace(tzinfo=None)
+            query["dateCreated"]["$lte"] = to_utc_naive(end)
 
     skip = (page - 1) * per_page
 
-    cursor = usage_collection.find(query).sort("dateCreated", -1).skip(skip).limit(per_page)
-    results = []
+    cursor = (
+        usage_collection
+        .find(query)
+        .sort("dateCreated", -1)
+        .skip(skip)
+        .limit(per_page)
+    )
 
+    results = []
     async for record in cursor:
         results.append({
             "product_id": str(record["product_id"]),
@@ -256,7 +272,6 @@ async def get_product_sim_usage(
         })
 
     return results
-
 
 
 # -------------------------------
