@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field
 
 class FacilitatorCreate(BaseModel):
-    name: str
+    company_id: str
     password: str
 
 class TokenPair(BaseModel):
@@ -16,5 +16,5 @@ class UsageCreate(BaseModel):
     kilowatts_used: float
 
 class FacilitatorRegister(BaseModel):
-    name: str = Field(..., min_length=3)
+    company_id: str = Field(..., min_length=3)
     password: str = Field(..., min_length=6)

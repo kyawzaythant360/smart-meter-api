@@ -6,8 +6,11 @@ class Facilitator(BaseModel):
     id: Optional[str]
     name: str
     hashed_password: str
-
-class GeneratorUsage(BaseModel):
-    facilitator_name: str
-    kilowatts_used: float
-    date: datetime = Field(default_factory=datetime.utcnow)
+    
+class SimUsageResponse(BaseModel):
+    product_id: str
+    dateCreated: datetime
+    generatedEnergyWh: float
+    generatedEnergyTotalWh: float
+    soldEnergyWh: float
+    boughtEnergyWh: float

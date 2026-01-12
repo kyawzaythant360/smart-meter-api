@@ -1,10 +1,9 @@
 import os
 from motor.motor_asyncio import AsyncIOMotorClient
 
-MONGO_USER = os.getenv("MONGO_USER")
-MONGO_PASSWORD = os.getenv("MONGO_PASSWORD")
-MONGO_DB = os.getenv("MONGO_DB")
-MONGO_URI = os.getenv("MONGO_URI")  # Already includes credentials
+MONGO_DB="smart_meter"
+MONGO_URI="mongodb://localhost:27017/mart_meter"
+
 
 client = AsyncIOMotorClient(MONGO_URI)
 db = client[MONGO_DB]
