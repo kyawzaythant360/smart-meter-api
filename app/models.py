@@ -6,6 +6,12 @@ class Facilitator(BaseModel):
     id: Optional[str]
     name: str
     hashed_password: str
+
+class SimUsageCreate(BaseModel):
+    product_id: str
+    generatedEnergyWh: float
+    soldEnergyWh: float
+    boughtEnergyWh: float
     
 class SimUsageResponse(BaseModel):
     product_id: str

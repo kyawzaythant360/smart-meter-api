@@ -2,7 +2,7 @@ import os
 from motor.motor_asyncio import AsyncIOMotorClient
 
 MONGO_DB="smart_meter"
-MONGO_URI="mongodb://localhost:27017/mart_meter"
+MONGO_URI="mongodb://localhost:27017/smart_meter"
 
 
 client = AsyncIOMotorClient(MONGO_URI)

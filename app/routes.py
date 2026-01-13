@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query, Header
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel
 from typing import List
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone,time
 from bson import ObjectId
 from jose import jwt, JWTError
 import random
@@ -229,6 +229,7 @@ async def get_product_sim_usage_post(req: SimUsageRequest):
 # -------------------------------
 # GET Usage Route (token via header)
 # -------------------------------
+
 @router.get("/products/{product_id}/sim", response_model=List[SimUsageResponse])
 async def get_product_sim_usage(
     product_id: str,
@@ -236,22 +237,43 @@ async def get_product_sim_usage(
     end: datetime | None = Query(None),
     page: int = Query(1, ge=1),
     per_page: int = Query(10, ge=1, le=100),
+    facilitator: str = Depends(get_current_user),
 ):
+    # Debug prints
+    print("FACILITATOR:", facilitator)
+    print("PRODUCT_ID:", product_id)
+    print("START:", start)
+    print("END:", end)
+    print("PAGE:", page)
+    print("PER_PAGE:", per_page)
+
+    # Validate ObjectId
+    try:
+        product_obj_id = ObjectId(product_id)
+    except InvalidId:
+        raise HTTPException(status_code=400, detail="Invalid product_id")
+
+    doc = await usage_collection.find_one({"facilitator_name": facilitator})
+    print("Sample document for this facilitator:", doc)
+
+    # Build query
     query = {
-        "product_id": ObjectId(product_id),
-        "facilitator_name": "demo_facilitator"
+        "product_id": product_obj_id,
+        "facilitator_name": facilitator,
     }
 
-    if start or end:
-        query["dateCreated"] = {}
+    if start:
+        query["dateCreated"] = query.get("dateCreated", {})
+        query["dateCreated"]["$gte"] = start  # Use exact datetime
 
-        if start:
-            query["dateCreated"]["$gte"] = to_utc_naive(start)
-        if end:
-            query["dateCreated"]["$lte"] = to_utc_naive(end)
+    if end:
+        query["dateCreated"] = query.get("dateCreated", {})
+        query["dateCreated"]["$lte"] = end  # Use exact datetime
 
+    # Pagination
     skip = (page - 1) * per_page
 
+    # Query MongoDB
     cursor = (
         usage_collection
         .find(query)
@@ -260,6 +282,7 @@ async def get_product_sim_usage(
         .limit(per_page)
     )
 
+    # Build response
     results = []
     async for record in cursor:
         results.append({
@@ -271,10 +294,9 @@ async def get_product_sim_usage(
             "boughtEnergyWh": record["boughtEnergy_wh"],
         })
 
+    print("RESULTS:", results)
     return results
-
-
-# -------------------------------
+#--------------------------------
 # Demo / Populate Route (No Auth)
 # -------------------------------
 FIXED_PRODUCT_ID = ObjectId("6964bf4daf5f95aeaff1b7be")  # example
@@ -282,23 +304,18 @@ FIXED_PRODUCT_ID = ObjectId("6964bf4daf5f95aeaff1b7be")  # example
 @router.post("/demo/populate")
 async def populate_demo_data(
     num_days: int = 30,
-    facilitator_name: str = "demo_facilitator"
+    facilitator_name: str = "facilitator1"
 ):
-    """
-    Populate MongoDB with demo usage data for a fixed product ID.
-    No auth required. Each day will have different usage data.
-    """
-    inserted_count = 0
-
     product_id = FIXED_PRODUCT_ID
     total_generated = 0
+    inserted_count = 0
 
-    for day_offset in range(num_days):
-        date_created = datetime.utcnow() - timedelta(days=(num_days - day_offset))
-        generated = random.randint(800, 1500)  # Wh
+    base_date = datetime.utcnow() - timedelta(days=num_days)
+
+    for i in range(num_days):
+        date_created = base_date + timedelta(days=i)
+        generated = random.randint(800, 1500)
         total_generated += generated
-        sold = random.randint(100, min(500, generated))
-        bought = random.randint(50, 300)
 
         document = {
             "product_id": product_id,
@@ -306,15 +323,16 @@ async def populate_demo_data(
             "dateCreated": date_created,
             "generatedEnergy_wh": generated,
             "generatedEnergyTotal_wh": total_generated,
-            "soldEnergy_wh": sold,
-            "boughtEnergy_wh": bought
+            "soldEnergy_wh": random.randint(100, 500),
+            "boughtEnergy_wh": random.randint(50, 300),
         }
 
         await usage_collection.insert_one(document)
         inserted_count += 1
 
     return {
-        "message": f"Demo data populated for product {product_id}, {num_days} days of data.",
+        "message": "Demo SIM usage data created",
         "records_inserted": inserted_count,
-        "product_id": str(product_id)
+        "product_id": str(product_id),
+        "facilitator": facilitator_name,
     }
